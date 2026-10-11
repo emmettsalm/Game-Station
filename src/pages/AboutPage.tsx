@@ -6,9 +6,9 @@ import photoEmmett from '../image/Emmett_Png.png'
 
 // TODO: ใส่ชื่อเล่นของแต่ละคนในช่อง nickname (โจทย์กำหนดให้แสดงชื่อเล่น)
 const members: Member[] = [
-  { name: 'คชภัค ชีพสัตยากร',nickname: 'พัค' ,studentId: '1660701325', role: 'Frontend Developer & Deployment', photo: photoKhachaphak },
-  { name: 'เดชาธร ธรรมชัชวาล',nickname: 'พี' ,studentId: '1660707215', role: 'UI/UX Designer & Frontend Developer', photo: photoDechathon },
-  { name: 'เอ็มเม็ต มีชัย แซลมอน',nickname: 'เอ็มเม็ต' ,studentId: '1660704444', role: 'Frontend Developer & UI/UX Designer', photo: photoEmmett },
+  { name: 'คชภัค ชีพสัตยากร',nickname: 'พัค' ,studentId: '1660701325', role: 'Frontend Developer & UI/UX Designer', photo: photoKhachaphak },
+  { name: 'เดชาธร ธรรมชัชวาล',nickname: 'พี' ,studentId: '1660707215', role: 'Database Developer & Software Tester', photo: photoDechathon },
+  { name: 'เอ็มเม็ต มีชัย แซลมอน',nickname: 'เอ็มเม็ต' ,studentId: '1660704444', role: 'Backend Developer & Deployment Engineer', photo: photoEmmett },
 ]
 
 const sources: ApiSource[] = [
