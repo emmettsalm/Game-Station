@@ -1,7 +1,6 @@
 import type { Game, GameDetail, Genre, Paginated, Screenshot } from '../types/game'
 
-const BASE_URL = 'https://api.rawg.io/api'
-const API_KEY = import.meta.env.VITE_RAWG_KEY
+const BASE_URL = '/api/rawg'
 
 export class RawgApiError extends Error {
   readonly status: number
@@ -26,11 +25,13 @@ async function request<T>(
   params: Record<string, string> = {},
   signal?: AbortSignal,
 ): Promise<T> {
-  if (!API_KEY?.trim()) throw new Error('ไม่พบ VITE_RAWG_KEY ในไฟล์ .env')
-  const query = new URLSearchParams({ ...params, key: API_KEY.trim() })
-  const response = await fetch(`${BASE_URL}/${path}?${query}`, { signal })
+  const query = new URLSearchParams({ ...params, path })
+  const response = await fetch(`${BASE_URL}?${query}`, { signal })
   if (!response.ok) {
-    throw new RawgApiError(`เรียก RAWG API ไม่สำเร็จ: ${response.status}`, response.status)
+    const error: unknown = await response.json().catch(() => null)
+    const message = error && typeof error === 'object' && 'message' in error && typeof error.message === 'string'
+      ? error.message : `เรียก RAWG API ไม่สำเร็จ: ${response.status}`
+    throw new RawgApiError(message, response.status)
   }
   return response.json() as Promise<T>
 }
