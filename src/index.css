@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: night --default, light;
+}
+
+@theme {
+  --font-sans: "Inter", "Noto Sans Thai", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  @apply bg-base-100 text-base-content antialiased;
+}
+
+/* ซ่อน scrollbar ของแถบหมวดหมู่ที่เลื่อนแนวนอน */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
