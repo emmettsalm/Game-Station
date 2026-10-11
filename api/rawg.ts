@@ -1,9 +1,14 @@
-import { env } from 'node:process'
-
 const RAWG_BASE = 'https://api.rawg.io/api/'
 const ALLOWED_PATH = /^(games|genres|games\/[1-9]\d{0,14}(\/screenshots)?)$/
 const ALLOWED_PARAMS = new Set(['path', 'page', 'page_size', 'genres', 'search', 'ordering'])
 const rateWindows = new Map<string, { start: number; count: number }>()
+
+function readServerEnv(name: string): string {
+  const runtime = globalThis as typeof globalThis & {
+    process?: { env?: Record<string, string | undefined> }
+  }
+  return runtime.process?.env?.[name] ?? ''
+}
 
 function jsonError(message: string, status: number, headers: Record<string, string> = {}) {
   return Response.json({ message }, {
@@ -126,6 +131,6 @@ export async function handleRawgRequest(request: Request, apiKey: string): Promi
 
 export default {
   fetch(request: Request) {
-    return handleRawgRequest(request, env.RAWG_API_KEY ?? '')
+    return handleRawgRequest(request, readServerEnv('RAWG_API_KEY'))
   },
 }
