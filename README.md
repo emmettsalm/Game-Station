@@ -3,7 +3,7 @@
 เว็บร้านเกมแนว Steam / Epic Games  
 React 19 · Vite · TypeScript · React Router v7 · Tailwind CSS v4 · DaisyUI 5
 
-> ตอนนี้ทุกหน้าใช้ **mock data** (`src/mocks/`) เพื่อพัฒนา UI ก่อนต่อ API จริง
+ข้อมูลเกมมาจาก RAWG และราคาเกม PC/ร้านค้ามาจาก CheapShark ผ่าน `/api/cheapshark` ฝั่งเซิร์ฟเวอร์ ส่วนบัญชีและ Library ใช้ LocalStorage หรือ Supabase ตามการตั้งค่า
 
 ## เริ่มใช้งาน
 
@@ -29,7 +29,7 @@ npm run lint     # เช็ก ESLint (ฟ้องถ้ามี any)
 ```
 src/
 ├─ types/        Interface ของ Game, Deal, Member (ใช้ร่วมกับฝั่ง API)
-├─ mocks/        ข้อมูลปลอม + hook จำลองสถานะ  ← ลบได้เมื่อต่อ API จริง
+├─ mocks/        บัญชีเดโมเมื่อไม่ได้ตั้ง Supabase
 ├─ components/
 │  ├─ state/     GameCardSkeleton, DetailSkeleton, ErrorState, EmptyState
 │  ├─ game/      GameCard, GameGrid, GameRow (แถวเลื่อนแบบ Netflix), HeroBanner, GenreTabs
@@ -61,6 +61,14 @@ src/
 
 สร้างไฟล์ `.env` (ดูตัวอย่างใน `.env.example`) — ห้าม commit ไฟล์ `.env`
 
-## หน้า Deals
+## ราคาและ Deals
 
-ใช้ข้อมูลโปรโมชันจำลองของเราเอง (`src/mocks/deals.ts`) ราคาเป็นเงินบาท ไม่ได้เชื่อม API ภายนอก
+- หน้า Store และ Deals เริ่มจากรายการเกมที่ CheapShark มีราคาจริง จับคู่ชื่อกับ RAWG เพื่ออ่านภาพ/รายละเอียด และโหลดหน้าถัดไปจนได้สูงสุด 30 เกม (ค้นหาไม่เกิน 3 หน้า)
+- อ่านราคาหลายร้านของแต่ละเกมด้วย CheapShark Multiple Game Lookup แบบชุดละไม่เกิน 25 เกม เพื่อลดจำนวนคำขอ
+- หน้า Store แสดงราคาที่ถูกที่สุด; หน้า Detail เลือกร้านพร้อมไอคอนและบันทึกร้านลง Library
+- หากเพิ่มจากการ์ดหรือแบนเนอร์โดยไม่เลือก ร้านที่ถูกที่สุดในขณะเปิด Library จะถูกแสดง
+- หน้า Deals แสดงเฉพาะเกมที่มีส่วนลดจริงจาก CheapShark โดยไม่สร้างวันหมดโปรขึ้นเอง
+- CheapShark ส่งราคาเป็น USD ตัวกลางแปลงเป็นเงินบาทด้วยอัตรา USD/THB ล่าสุดจาก Frankfurter และแสดงว่าเป็นราคาโดยประมาณ
+- เกมที่ไม่มีชื่อจับคู่ตรงกันใน RAWG จะไม่อยู่ในรายการ Store/Deals; หน้า Detail และ Library ของเกมเก่ายังแสดงว่าไม่พบราคาหาก CheapShark ไม่มีข้อมูล
+- CheapShark จำกัดอัตราการเรียก API จึงเก็บผลชั่วคราวและแสดงข้อผิดพลาดพร้อมให้ลองใหม่เมื่อถูกจำกัดชั่วคราว
+- ในโหมด Supabase รายการเกมเก็บที่ Supabase ส่วนร้านที่เลือกเก็บในเบราว์เซอร์เดียวกัน

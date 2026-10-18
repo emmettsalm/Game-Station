@@ -1,8 +1,8 @@
 import type { Deal } from '../types/deal'
-import {getDealForGame, SALE_ENDS_AT} from '../mocks/pricing'
-import { GAME_LIST_SIZE, useGames } from '../hooks/useGames'
+import { getDealForOffers, priceErrorMessage } from '../api/cheapshark'
+import { useGameOfferQueries } from '../hooks/useGameOffers'
+import { useStoreCatalog } from '../hooks/useStoreCatalog'
 import DealCard from '../components/deal/DealCard'
-import SaleCountdown from '../components/deal/SaleCountdown'
 import GameGrid from '../components/game/GameGrid'
 import ErrorState from '../components/state/ErrorState'
 import EmptyState from '../components/state/EmptyState'
@@ -15,59 +15,18 @@ const sortByDiscount = (
   )
 
 export default function DealsPage() {
-  // โหลดเกมจริงชุดเดียวกับหน้า Home
-  const gamesQuery = useGames()
+  // Show deals only for games in the Store menu's shared 30-game catalog.
+  const { pricedQuery: gamesQuery, games, pricesUnavailable } = useStoreCatalog()
 
-  const games =
-    (gamesQuery.data?.results ?? []).slice(0, GAME_LIST_SIZE)
+  const priceQueries = useGameOfferQueries(pricesUnavailable ? [] : games)
+  const pricesLoading = priceQueries.some((query) => query.isPending)
+  const pricesFailed = priceQueries.some((query) => query.isError)
 
-  // สร้างรายการเกมที่เข้าเงื่อนไขโปรโมชันทั้งหมด
-  const allDeals = sortByDiscount(
-    games.flatMap((game): Deal[] => {
-      const dealInfo =
-        getDealForGame(game.id)
-
-      // เกมฟรีหรือเกมที่ไม่มีส่วนลดจะไม่เข้า Deals
-      if (!dealInfo) {
-        return []
-      }
-
-      const ratingPercent = Math.round(
-        (game.rating / 5) * 100,
-      )
-
-      const ratingText =
-        ratingPercent >= 90
-          ? 'Overwhelmingly Positive'
-          : ratingPercent >= 80
-            ? 'Very Positive'
-            : 'Mostly Positive'
-
-      return [
-        {
-          id: `deal-${game.id}`,
-          gameId: game.id,
-          title: game.name,
-          image: game.background_image,
-          normalPrice:
-            dealInfo.normalPrice,
-          salePrice:
-            dealInfo.salePrice,
-          discount:
-            dealInfo.discount,
-          ratingText,
-          ratingPercent,
-          endsAt:
-            dealInfo.endsAt,
-        },
-      ]
-    }),
-  )
-
+  // เกมที่มีส่วนลด เรียงจากลดมากไปน้อย (เกมฟรีหรือไม่ลดจะไม่เข้า Deals)
   const deals = sortByDiscount(
-  games.flatMap((game): Deal[] => {
+  games.flatMap((game, index): Deal[] => {
     const dealInfo =
-      getDealForGame(game.id)
+      getDealForOffers(priceQueries[index]?.data ?? [])
 
     if (!dealInfo) {
       return []
@@ -98,50 +57,24 @@ export default function DealsPage() {
           dealInfo.discount,
         ratingText,
         ratingPercent,
-        endsAt:
-          dealInfo.endsAt,
       },
     ]
   }),
 )
 
-  const refetch = () => {
-    void gamesQuery.refetch()
-  }
+  const refetch = () => { void gamesQuery.refetch() }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold">
-            🔥 Hot Deals
-          </h1>
-
-          {!gamesQuery.isLoading &&
-            !gamesQuery.isError && (
-              <p className="mt-1 text-sm opacity-70">
-                แสดงโปรโมชัน {deals.length} เกม
-                จากเกมที่เข้าเงื่อนไขทั้งหมด{' '}
-                {allDeals.length} เกม
-              </p>
-            )}
-        </div>
-
-        {!gamesQuery.isLoading &&
-          !gamesQuery.isError &&
-          deals.length > 0 && (
-            <SaleCountdown
-              endsAt={SALE_ENDS_AT}
-            />
-          )}
-      </div>
-
-      {gamesQuery.isError ? (
+      <h1 className="text-3xl md:text-4xl font-extrabold">
+        🔥 Hot Deals
+      </h1>
+      {pricesUnavailable ? (
         <ErrorState
-          message="โหลดโปรโมชันไม่สำเร็จ"
+          message={priceErrorMessage(gamesQuery.error)}
           onRetry={refetch}
         />
-      ) : gamesQuery.isLoading ? (
+      ) : gamesQuery.isLoading || pricesLoading ? (
         <GameGrid>
           {Array.from(
             { length: 8 },
@@ -159,9 +92,11 @@ export default function DealsPage() {
       ) : deals.length === 0 ? (
         <EmptyState
           icon="🏷️"
-          title="ยังไม่มีโปรโมชันตอนนี้"
+          title={pricesFailed ? 'โหลดราคา CheapShark ไม่สำเร็จ' : 'ยังไม่มีโปรโมชันตอนนี้'}
         />
       ) : (
+        <>
+        {pricesFailed && <ErrorState message="บางเกมโหลดราคาไม่สำเร็จ" onRetry={() => { priceQueries.forEach((query) => { if (query.isError) void query.refetch() }) }} />}
         <GameGrid>
           {deals.map((deal) => (
             <DealCard
@@ -170,7 +105,8 @@ export default function DealsPage() {
             />
           ))}
         </GameGrid>
+        </>
       )}
     </div>
   )
-}
+}

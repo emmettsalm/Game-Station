@@ -79,7 +79,7 @@ npm run dev
 - ถ้าตั้งค่า Supabase แล้วเชื่อมไม่ได้ จะแจ้ง error และมีปุ่มลองใหม่ ไม่มีการกลับไปบันทึกลง LocalStorage เงียบ ๆ
 - โหมด Supabase SDK จะเก็บ session/token ของตัวเองใน LocalStorage เพื่อให้ Login ต่อหลัง reload ได้ ไม่ได้เก็บรหัสผ่าน ส่วนข้อมูลผู้ใช้จริงและ Library อยู่ที่ Supabase
 - TanStack Query ดูแลคำขออ่าน/เขียน Library และ cache; Zustand เก็บ client session และ collection IDs เท่านั้น ไม่เก็บรายละเอียดเกมจาก RAWG ซ้ำ
-- จำนวนเกม Home/Deals ยังใช้ GAME_LIST_SIZE เดิม ค่าเริ่มต้น 30 เกม และราคา/เงื่อนไขส่วนลดไม่ได้เปลี่ยน
+- หน้า Home/Deals จะแสดงได้สูงสุด 30 เกมที่จับคู่ RAWG กับ CheapShark และมีราคาจริง โหลดข้อมูลเพิ่มจาก CheapShark แบบแบ่งหน้า (สูงสุด 3 หน้า) ราคาแสดงเป็นเงินบาทโดยประมาณตามอัตรา Frankfurter
 
 ## 5. ตรวจหลังเชื่อมโปรเจกต์จริง
 

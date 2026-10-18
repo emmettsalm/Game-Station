@@ -1,8 +1,12 @@
 import { useSearchParams } from 'react-router'
-import { getGamePrice } from '../mocks/pricing'
+import { useGameOfferQueries } from '../hooks/useGameOffers'
+import { CheapSharkApiError, getCheapestOffer, priceErrorMessage } from '../api/cheapshark'
 import { useAuthStore } from '../store/useAuthStore'
 import { useLibraryStore } from '../store/useLibraryStore'
-import { GAME_LIST_SIZE, useGames, useGenres } from '../hooks/useGames'
+import { useOfferStore } from '../store/useOfferStore'
+import { useGenres } from '../hooks/useGames'
+import { PRICED_GAME_COUNT } from '../hooks/usePricedGames'
+import { useStoreCatalog } from '../hooks/useStoreCatalog'
 import GameCard from '../components/game/GameCard'
 import GameGrid from '../components/game/GameGrid'
 import GameRow from '../components/game/GameRow'
@@ -20,17 +24,21 @@ export default function HomePage() {
   const search = params.get('q')?.trim() ?? ''
   const isListMode = Boolean(genre || search || params.get('view') === 'all')
 
-  const gamesQuery = useGames()
+  const { pricedQuery: gamesQuery, fallbackQuery, games: allGames,
+    pricesUnavailable: catalogUnavailable, isLoading } = useStoreCatalog()
+  const isRateLimited = gamesQuery.error instanceof CheapSharkApiError && gamesQuery.error.status === 429
   const genresQuery = useGenres()
   const user = useAuthStore((state) => state.user)
   const wishlist = useLibraryStore((state) => user ? state.libraryByUser[user.id] : undefined) ?? []
   const toggleGame = useLibraryStore((state) => state.toggleGame)
+  const removeOffer = useOfferStore((state) => state.removeOffer)
   const toggleWishlist = (gameId: number) => {
     if (!user) {
       window.alert('กรุณาเข้าสู่ระบบก่อนเพิ่มเกมเข้า Library')
       return
     }
-    toggleGame(user.id, gameId)
+    removeOffer(user.id, gameId)
+    void toggleGame(user.id, gameId)
   }
   const updateParams = (next: Record<string, string | undefined>) => {
     const updated = new URLSearchParams(params)
@@ -41,7 +49,9 @@ export default function HomePage() {
     setParams(updated)
   }
   const genres = genresQuery.data?.results ?? []
-  const allGames = (gamesQuery.data?.results ?? []).slice(0, GAME_LIST_SIZE)
+  const priceQueries = useGameOfferQueries(catalogUnavailable ? [] : allGames)
+  const getPrice = (game: typeof allGames[number]) =>
+    getCheapestOffer(priceQueries[allGames.findIndex((item) => item.id === game.id)]?.data ?? [])?.price
   const keyword = search.toLowerCase()
   const games = allGames.filter((game) => (
     (!keyword || game.name.toLowerCase().includes(keyword)) &&
@@ -49,7 +59,9 @@ export default function HomePage() {
   ))
   const popular = [...allGames].sort((a, b) => b.added - a.added)
   const count = games.length
-  const retryGames = () => { void gamesQuery.refetch() }
+  const retryGames = () => {
+    void gamesQuery.refetch()
+  }
   const searchBar = (
     <SearchBar key={search} defaultValue={search}
       onSearch={(q) => updateParams({ q: q || undefined, page: undefined, view: 'all' })} />
@@ -60,6 +72,12 @@ export default function HomePage() {
       <button type="button" className="btn btn-sm" onClick={() => { void genresQuery.refetch() }}>ลองใหม่</button>
     </div>
   ) : genresQuery.isLoading ? <div className="skeleton h-10 w-full" aria-label="กำลังโหลดหมวดหมู่" /> : null
+  const priceNotice = catalogUnavailable ? (
+    <div role="alert" className="alert alert-warning text-sm">
+      <span>{priceErrorMessage(gamesQuery.error)} กำลังแสดงเกมจาก RAWG โดยยังไม่มีราคา{isRateLimited ? ' ระบบจะลองใหม่เมื่อครบเวลารอ' : ''}</span>
+      {!isRateLimited && <button type="button" className="btn btn-sm" onClick={retryGames}>ลองโหลดราคาอีกครั้ง</button>}
+    </div>
+  ) : null
 
   if (isListMode) {
     const genreName = genres.find((item) => item.slug === genre)?.name ?? genre
@@ -67,23 +85,25 @@ export default function HomePage() {
       <div className="space-y-6">
         <div className="space-y-4">
           {searchBar}
+          {priceNotice}
           {genreFeedback}
           <GenreTabs genres={genres} active={genre}
             onSelect={(slug) => updateParams({ genre: slug, page: undefined, view: 'all' })} />
         </div>
         <h1 className="text-2xl font-bold">
           {search ? `ผลการค้นหา “${search}”` : genre ? `หมวด ${genreName}` : 'เกมทั้งหมด'}
-          {gamesQuery.data && ` (${count.toLocaleString()} เกม)`}
+          {(gamesQuery.data || (catalogUnavailable && fallbackQuery.data)) && ` (${count.toLocaleString()} เกม)`}
         </h1>
-        {gamesQuery.isError && !gamesQuery.data ? <ErrorState onRetry={retryGames} />
-          : gamesQuery.isLoading ? (
+        {catalogUnavailable && fallbackQuery.isError
+          ? <ErrorState message="โหลดข้อมูลเกมจาก RAWG ไม่สำเร็จ" onRetry={() => { void fallbackQuery.refetch() }} />
+          : isLoading ? (
             <GameGrid>{Array.from({ length: 8 }, (_, i) => <GameCardSkeleton key={i} />)}</GameGrid>
-          ) : games.length === 0 ? <EmptyState icon="🔎" title={`ไม่พบเกมในชุด ${GAME_LIST_SIZE} เกมนี้`} /> : (
+          ) : games.length === 0 ? <EmptyState icon="🔎" title="ไม่พบเกมในชุดเกมหน้า Store" /> : (
             <>
-              {gamesQuery.isError && <ErrorState message="อัปเดตข้อมูลไม่สำเร็จ กำลังแสดงข้อมูลที่โหลดไว้" onRetry={retryGames} />}
+              {gamesQuery.isError && !catalogUnavailable && <ErrorState message="อัปเดตข้อมูลไม่สำเร็จ กำลังแสดงข้อมูลที่โหลดไว้" onRetry={retryGames} />}
               <GameGrid>
                 {games.map((game) => <GameCard key={game.id} game={game} saved={wishlist.includes(game.id)}
-                  onToggleSave={toggleWishlist} price={getGamePrice(game.id)} />)}
+                  onToggleSave={toggleWishlist} price={getPrice(game)} priceUnavailable={catalogUnavailable} />)}
               </GameGrid>
             </>
           )}
@@ -95,17 +115,21 @@ export default function HomePage() {
   const featured = popular[0]
   return (
     <div className="space-y-10">
-      {gamesQuery.isLoading ? <div className="skeleton -mx-4 -mt-6 h-[60vh] rounded-none" />
+      {isLoading ? <div className="skeleton -mx-4 -mt-6 h-[60vh] rounded-none" />
         : featured ? <HeroBanner game={featured} saved={wishlist.includes(featured.id)} onToggleSave={toggleWishlist} />
-          : gamesQuery.isError ? <ErrorState onRetry={retryGames} />
+          : catalogUnavailable && fallbackQuery.isError
+            ? <ErrorState message="โหลดข้อมูลเกมจาก RAWG ไม่สำเร็จ" onRetry={() => { void fallbackQuery.refetch() }} />
+          : gamesQuery.isError ? <ErrorState message={priceErrorMessage(gamesQuery.error)} onRetry={retryGames} />
             : <EmptyState icon="🎮" title="ยังไม่มีเกมในระบบ" />}
       {searchBar}
-      {gamesQuery.isError && featured && <ErrorState message="อัปเดตข้อมูลไม่สำเร็จ" onRetry={retryGames} />}
-      <PopularSection title="ยอดนิยมตอนนี้" games={popular.slice(0, 4)} isLoading={gamesQuery.isLoading}
-        savedIds={wishlist} onToggleSave={toggleWishlist} getPrice={(game) => getGamePrice(game.id)} />
-      <GameRow title="เกมทั้งหมด" games={games} isLoading={gamesQuery.isLoading}
-        isError={gamesQuery.isError && !gamesQuery.data} onRetry={retryGames} seeAllTo="/?view=all"
-        savedIds={wishlist} onToggleSave={toggleWishlist} getPrice={(game) => getGamePrice(game.id)} />
+      {priceNotice}
+      {gamesQuery.isError && featured && !catalogUnavailable && <ErrorState message="อัปเดตข้อมูลไม่สำเร็จ" onRetry={retryGames} />}
+      <PopularSection title="ยอดนิยมตอนนี้" games={popular.slice(0, 4)} isLoading={isLoading}
+        savedIds={wishlist} onToggleSave={toggleWishlist} getPrice={getPrice} />
+      <GameRow title={catalogUnavailable ? `เกมจาก RAWG (${games.length} เกม)` : `เกมที่มีราคา (${games.length}/${PRICED_GAME_COUNT})`}
+        games={games} isLoading={isLoading}
+        seeAllTo="/?view=all"
+        savedIds={wishlist} onToggleSave={toggleWishlist} getPrice={getPrice} />
       {genreFeedback}
       {genres.slice(0, 8).map((item) => ({
         genre: item,
@@ -113,7 +137,7 @@ export default function HomePage() {
       })).filter((row) => row.games.length > 0).map((row) => (
         <GameRow key={row.genre.id} title={row.genre.name} games={row.games}
           seeAllTo={`/?genre=${encodeURIComponent(row.genre.slug)}`}
-          savedIds={wishlist} onToggleSave={toggleWishlist} getPrice={(game) => getGamePrice(game.id)} />
+          savedIds={wishlist} onToggleSave={toggleWishlist} getPrice={getPrice} />
       ))}
     </div>
   )

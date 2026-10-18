@@ -1,6 +1,5 @@
 import type { PriceInfo } from '../../types/game'
-
-const baht = (n: number) => `฿${Math.round(n).toLocaleString('th-TH')}`
+import { baht } from '../../utils/format'
 
 /** ราคาแบบตัวหนังสือ: "ฟรี" / "฿599" / "฿399 → ฿239" */
 export default function PriceTag({ price }: { price: PriceInfo }) {
@@ -8,9 +7,9 @@ export default function PriceTag({ price }: { price: PriceInfo }) {
     return <span className="font-bold text-white">FREE</span>
   }
   if (price.discount === 0) {
-    return <span className="font-semibold">{baht(price.normal)}</span>
+    return <span className="font-semibold">{baht(price.sale)}</span>
   }
-  const sale = price.normal * (1 - price.discount / 100)
+  const sale = price.sale
   return (
     <span className="flex items-baseline gap-1.5 whitespace-nowrap">
       <span className="text-xs opacity-50 line-through">{baht(price.normal)}</span>

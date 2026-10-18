@@ -10,6 +10,7 @@ interface GameCardProps {
   saved: boolean
   onToggleSave: (id: number) => void
   price?: PriceInfo
+  priceUnavailable?: boolean
 }
 
 export default function GameCard({
@@ -17,6 +18,7 @@ export default function GameCard({
   saved,
   onToggleSave,
   price,
+  priceUnavailable = false,
 }: GameCardProps) {
   return (
     <Link
@@ -90,6 +92,9 @@ export default function GameCard({
 
           {price && (
             <PriceTag price={price} />
+          )}
+          {!price && priceUnavailable && (
+            <span className="text-xs opacity-60">ราคายังไม่พร้อม</span>
           )}
         </div>
       </div>

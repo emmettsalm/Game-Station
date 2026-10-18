@@ -8,10 +8,11 @@ interface GameCapsuleProps {
   saved: boolean
   onToggleSave: (id: number) => void
   price?: PriceInfo            // ไม่ส่ง = แสดง rating แทนราคา
+  subtitle?: string            // ข้อความเล็กใต้ชื่อ เช่น แพลตฟอร์มที่เลือก
 }
 
 /** การ์ดแนวนอน: รูปเกม + ชื่อและราคาด้านล่าง */
-export default function GameCapsule({ game, saved, onToggleSave, price }: GameCapsuleProps) {
+export default function GameCapsule({ game, saved, onToggleSave, price, subtitle }: GameCapsuleProps) {
   return (
     <Link to={`/game/${game.id}`} title={game.name} className="group/cap block space-y-2">
       <div className="relative aspect-[460/215] overflow-hidden rounded-xl bg-base-300">
@@ -44,7 +45,10 @@ export default function GameCapsule({ game, saved, onToggleSave, price }: GameCa
 
       {/* ชื่อเกม (ซ้าย) + ราคา (ขวา) */}
       <div className="flex items-center justify-between gap-3 px-1 text-sm">
-        <span className="font-medium line-clamp-1 group-hover/cap:text-primary transition-colors">{game.name}</span>
+        <span className="min-w-0">
+          <span className="block font-medium line-clamp-1 group-hover/cap:text-primary transition-colors">{game.name}</span>
+          {subtitle && <span className="block text-xs opacity-60 line-clamp-1">{subtitle}</span>}
+        </span>
         {price ? <PriceTag price={price} /> : <span className="opacity-70 whitespace-nowrap">⭐ {game.rating.toFixed(1)}</span>}
       </div>
     </Link>

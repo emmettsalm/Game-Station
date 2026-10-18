@@ -13,6 +13,7 @@ const members: Member[] = [
 
 const sources: ApiSource[] = [
   { name: 'RAWG Video Games Database API', url: 'https://rawg.io/apidocs', usage: 'ข้อมูลเกม หมวดหมู่ และภาพตัวอย่าง' },
+  { name: 'CheapShark API', url: 'https://apidocs.cheapshark.com/', usage: 'ราคาเกมและดีลจากร้านค้าต่างๆ (จำลองข้อมูลตามรูปแบบ API)' },
 ]
 
 

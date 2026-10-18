@@ -47,7 +47,18 @@ export interface Paginated<T> {
   results: T[]
 }
 
-/** ราคาสำหรับแสดงบนการ์ด (RAWG ไม่มีราคา — ตอนนี้ใช้ mock / ถ้าไม่มีจะโชว์ rating แทน) */
+/** ราคา PC จาก CheapShark แปลงเป็นเงินบาทด้วยอัตราแลกเปลี่ยนล่าสุด */
 export type PriceInfo =
   | { type: 'free' }
-  | { type: 'paid'; normal: number; discount: number } // discount เป็น % เช่น 40
+  | { type: 'paid'; normal: number; sale: number; discount: number }
+
+/** ราคาปัจจุบันของเกม 1 เกมใน 1 ร้านค้า */
+export interface PriceOffer {
+  id: string            // CheapShark dealID
+  gameId: number
+  storeId: string       // storeID ของ CheapShark เช่น "1" = Steam
+  storeName: string
+  storeIcon: string | null
+  rateDate: string
+  price: PriceInfo
+}

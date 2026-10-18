@@ -7,12 +7,13 @@ export const GAME_LIST_SIZE = 30
 
 const GAME_STALE_TIME = 5 * 60 * 1000
 
-export function useGames(params: GamesQueryParams = {}) {
+export function useGames(params: GamesQueryParams = {}, enabled = true, staleTime = GAME_STALE_TIME) {
   const queryParams = { page: 1, pageSize: GAME_LIST_SIZE, ...params }
   return useQuery({
     queryKey: ['games', queryParams],
     queryFn: ({ signal }) => getGames(queryParams, signal),
-    staleTime: GAME_STALE_TIME,
+    enabled,
+    staleTime,
   })
 }
 

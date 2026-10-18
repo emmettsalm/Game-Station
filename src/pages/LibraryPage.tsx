@@ -3,7 +3,9 @@ import { useLibraryStore } from '../store/useLibraryStore'
 import { useGamesByIds } from '../hooks/useGames'
 import { RawgApiError } from '../api/rawg'
 import GameCapsule from '../components/game/GameCapsule'
-import { getGamePrice } from '../mocks/pricing'
+import { getCheapestOffer, getOfferByStoreId } from '../api/cheapshark'
+import { useGameOfferQueries } from '../hooks/useGameOffers'
+import { useOfferStore } from '../store/useOfferStore'
 import GameGrid from '../components/game/GameGrid'
 import EmptyState from '../components/state/EmptyState'
 
@@ -16,8 +18,20 @@ export default function LibraryPage() {
   const loading = useLibraryStore((state) => state.loading)
   const pending = useLibraryStore((state) => state.pending)
   const gameQueries = useGamesByIds(wishlist)
+  const priceQueries = useGameOfferQueries(gameQueries.map((query) => query.data))
+  // แพลตฟอร์มที่ผู้ใช้เลือกไว้ตอนเพิ่มเข้า Library
+  const savedOffers = useOfferStore((state) => (user ? state.selected[user.id] : undefined))
+  const removeOffer = useOfferStore((state) => state.removeOffer)
+  const clearOffers = useOfferStore((state) => state.clearOffers)
   const toggleWishlist = (gameId: number) => {
-    if (user) toggleGame(user.id, gameId)
+    if (!user) return
+    removeOffer(user.id, gameId)
+    void toggleGame(user.id, gameId)
+  }
+  const handleClear = () => {
+    if (!user) return
+    clearOffers(user.id)
+    void clearLibrary(user.id)
   }
 
   return (
@@ -25,7 +39,7 @@ export default function LibraryPage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl md:text-4xl font-extrabold">My Library</h1>
         {user && wishlist.length > 0 && (
-          <button type="button" className="btn btn-outline btn-error btn-sm" disabled={pending || loading} onClick={() => clearLibrary(user.id)}>
+          <button type="button" className="btn btn-outline btn-error btn-sm" disabled={pending || loading} onClick={handleClear}>
             ล้างทั้งหมด
           </button>
         )}
@@ -60,13 +74,28 @@ export default function LibraryPage() {
                 <div className="skeleton h-4 w-3/4" />
               </div>
             )
+            // ราคาที่เลือกไว้ (ถ้าบันทึกจากการ์ดโดยไม่ได้เลือก = ราคาถูกสุด)
+            const offers = priceQueries[index]?.data ?? []
+            const offer = getOfferByStoreId(offers, savedOffers?.[gameId]) ?? getCheapestOffer(offers)
             return (
               <div key={gameId} className="space-y-2">
-                <GameCapsule game={query.data} saved onToggleSave={toggleWishlist} price={getGamePrice(gameId)} />
+                <GameCapsule
+                  game={query.data}
+                  saved
+                  onToggleSave={toggleWishlist}
+                  price={offer?.price}
+                  subtitle={offer ? `${offer.storeName} · ราคาโดยประมาณ (บาท)` : priceQueries[index]?.isLoading ? 'กำลังโหลดราคา...' : 'ไม่พบราคาใน CheapShark'}
+                />
                 {query.isError && (
                   <div role="alert" className="text-sm">
                     อัปเดตข้อมูลไม่สำเร็จ{' '}
                     <button type="button" className="link link-primary" onClick={() => { void query.refetch() }}>ลองใหม่</button>
+                  </div>
+                )}
+                {priceQueries[index]?.isError && (
+                  <div role="alert" className="text-sm">
+                    โหลดราคาไม่สำเร็จ{' '}
+                    <button type="button" className="link link-primary" onClick={() => { void priceQueries[index].refetch() }}>ลองใหม่</button>
                   </div>
                 )}
               </div>

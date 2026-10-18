@@ -164,6 +164,8 @@ export default function RootLayout() {
         <p>
           © 2026 GameStation · Data by{' '}
           <a className="link" href="https://rawg.io" target="_blank" rel="noreferrer">RAWG</a>
+          {' '}· Prices by{' '}
+          <a className="link" href="https://www.cheapshark.com" target="_blank" rel="noreferrer">CheapShark</a>
         </p>
       </footer>
 

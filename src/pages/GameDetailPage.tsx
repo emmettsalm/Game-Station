@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { RawgApiError } from '../api/rawg'
 import { useGame, useScreenshots } from '../hooks/useGames'
@@ -7,7 +8,11 @@ import DetailSkeleton from '../components/state/DetailSkeleton'
 import ErrorState from '../components/state/ErrorState'
 import EmptyState from '../components/state/EmptyState'
 import BookmarkIcon from '../components/common/BookmarkIcon'
-import { getDealForGame, getGamePrice } from '../mocks/pricing'
+import { finalPrice, getCheapestOffer, getDealForOffers, getOfferByStoreId, priceErrorMessage } from '../api/cheapshark'
+import { useGameOffers } from '../hooks/useGameOffers'
+import { useOfferStore } from '../store/useOfferStore'
+import OfferPicker from '../components/game/OfferPicker'
+import ScreenshotGallery from '../components/game/ScreenshotGallery'
 import { baht, thaiDate } from '../utils/format'
 
 export default function GameDetailPage() {
@@ -28,22 +33,15 @@ export default function GameDetailPage() {
     (state) => state.toggleGame,
   )
 
-  const toggleWishlist = (gameId: number) => {
-    if (!user) {
-      window.alert('กรุณาเข้าสู่ระบบก่อนเพิ่มเกมเข้า Library')
-      return
-    }
+  // ราคาทุกแพลตฟอร์ม + แพลตฟอร์มที่บันทึกไว้ใน Library
+  const savedOfferId = useOfferStore((state) => (user ? state.selected[user.id]?.[gameId] : undefined))
+  const setOffer = useOfferStore((state) => state.setOffer)
+  const removeOffer = useOfferStore((state) => state.removeOffer)
+  const [pickedId, setPickedId] = useState<string>()
 
-    toggleGame(user.id, gameId)
-  }
-
-  const deal = getDealForGame(gameId)
-  const price = getGamePrice(gameId)
-
-  const salePrice =
-    price.type === 'paid'
-      ? Math.round(price.normal * (1 - price.discount / 100))
-      : 0
+  const offersQuery = useGameOffers(game)
+  const offers = offersQuery.data ?? []
+  const deal = getDealForOffers(offers)
 
   const screenshots = screenshotsQuery.data?.results ?? []
 
@@ -59,6 +57,27 @@ export default function GameDetailPage() {
   if (!game) return <EmptyState icon="👾" title="ไม่พบเกมนี้" actionLabel="กลับไปที่ Store" actionTo="/" />
 
   const saved = wishlist.includes(game.id)
+  // ราคาที่บันทึกไว้ (ถ้าเป็นเกมที่บันทึกจากการ์ดโดยไม่ได้เลือก = ราคาถูกสุด)
+  const savedOffer = saved ? (getOfferByStoreId(offers, savedOfferId) ?? getCheapestOffer(offers)) : undefined
+  const selected = offers.find((offer) => offer.id === pickedId) ?? savedOffer ?? getCheapestOffer(offers)
+  const selectedName = selected?.storeName ?? ''
+  const isSavedChoice = selected && savedOffer?.storeId === selected.storeId
+
+  const handleLibrary = () => {
+    if (!user) {
+      window.alert('กรุณาเข้าสู่ระบบก่อนเพิ่มเกมเข้า Library')
+      return
+    }
+    if (!saved) {
+      if (selected) setOffer(user.id, game.id, selected.storeId)
+      void toggleGame(user.id, game.id)
+    } else if (isSavedChoice || !selected) {
+      removeOffer(user.id, game.id)                     // นำออกจาก Library
+      void toggleGame(user.id, game.id)
+    } else {
+      if (selected) setOffer(user.id, game.id, selected.storeId)
+    }
+  }
 
   return (
     <article className="space-y-8">
@@ -106,50 +125,51 @@ export default function GameDetailPage() {
             {!screenshotsQuery.isLoading && !screenshotsQuery.isError && screenshots.length === 0 && (
               <p className="text-sm opacity-60">ยังไม่มีภาพตัวอย่าง</p>
             )}
-            <div className="carousel carousel-center w-full gap-3 rounded-box">
-              {screenshots.map((s) => (
-                <div key={s.id} className="carousel-item">
-                  <img src={s.image} alt={`${game.name} screenshot`} loading="lazy"
-                    className="h-48 md:h-60 rounded-box object-cover" />
-                </div>
-              ))}
-            </div>
+            {screenshots.length > 0 && <ScreenshotGallery screenshots={screenshots} gameName={game.name} />}
           </section>
         </div>
 
         {/* ขวา: กล่องข้อมูล */}
         <aside className="card bg-base-200 h-fit lg:sticky lg:top-24">
           <div className="card-body gap-4">
-            {/* ราคา — ถ้ามีโปรโมชันแสดงราคาลด + วันหมดโปร */}
-            <div>
-              {price.type === 'free' ? (
+            {/* ราคาของแพลตฟอร์มที่เลือก */}
+            {offersQuery.isLoading ? <div className="skeleton h-20 w-full" aria-label="กำลังโหลดราคา" /> : offersQuery.isError ? (
+              <ErrorState message={priceErrorMessage(offersQuery.error)} onRetry={() => { void offersQuery.refetch() }} />
+            ) : !selected ? <p className="text-sm opacity-60">ไม่พบราคา PC ของเกมนี้ใน CheapShark</p> : <div>
+              <p className="text-sm opacity-60">ราคาบน {selectedName} (บาทโดยประมาณ)</p>
+              {selected.price.type === 'free' ? (
                 <span className="text-4xl font-extrabold">FREE</span>
-              ) : price.discount > 0 ? (
+              ) : selected.price.discount > 0 ? (
                 <>
-                  <p className="text-sm opacity-60">ราคาโปรโมชัน</p>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-extrabold text-green-400">
-                      {baht(salePrice)}
-                    </span>
-                    <span className="text-lg opacity-50 line-through">{baht(price.normal)}</span>
+                    <span className="text-4xl font-extrabold text-green-400">{baht(finalPrice(selected.price))}</span>
+                    <span className="text-lg opacity-50 line-through">{baht(selected.price.normal)}</span>
                   </div>
                   <p className="text-sm text-green-400 mt-1">
-                    ประหยัด {baht(price.normal - salePrice)} ({price.discount}%)
+                    ประหยัด {baht(selected.price.normal - finalPrice(selected.price))} ({selected.price.discount}%)
                   </p>
-                  {deal && <p className="text-xs opacity-60 mt-1">โปรโมชันถึงวันที่ {thaiDate(deal.endsAt)}</p>}
                 </>
               ) : (
-                <span className="text-4xl font-extrabold">{baht(price.normal)}</span>
+                <span className="text-4xl font-extrabold">{baht(selected.price.sale)}</span>
               )}
-            </div>
+              <p className="text-xs opacity-60 mt-2">อัตราแลกเปลี่ยนอ้างอิงวันที่ {thaiDate(selected.rateDate)} · ราคาชำระจริงอาจต่างกัน</p>
+            </div>}
+
+            {/* เลือกแพลตฟอร์ม */}
+            {selected && <OfferPicker
+              offers={offers}
+              selectedId={selected.id}
+              savedId={savedOffer?.id}
+              onSelect={setPickedId}
+            />}
 
             <button
               type="button"
-              className={`btn btn-lg ${saved ? 'btn-outline btn-primary' : 'btn-primary'}`}
-              onClick={() => toggleWishlist(game.id)}
+              className={`btn btn-lg ${saved && isSavedChoice ? 'btn-outline btn-primary' : 'btn-primary'}`}
+              onClick={handleLibrary}
             >
               <BookmarkIcon filled={saved} className="w-5 h-5" />
-              {saved ? 'อยู่ใน Library แล้ว' : 'เพิ่มเข้า Library'}
+              {!saved ? 'เพิ่มเข้า Library' : isSavedChoice ? 'อยู่ใน Library แล้ว' : selected ? `เปลี่ยนเป็น ${selectedName}` : 'นำออกจาก Library'}
             </button>
 
             <dl className="text-sm space-y-3">
