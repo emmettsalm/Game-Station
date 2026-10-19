@@ -206,7 +206,7 @@ export async function handleCheapSharkRequest(request: Request): Promise<Respons
   const title = url.searchParams.get('title')?.trim() ?? ''
   if (title.length > 120 || (!isList && !title)) return error('ชื่อเกมไม่ถูกต้อง', 400)
   const pageText = url.searchParams.get('page') ?? ''
-  if (isList && (!/^[0-3]$/.test(pageText) || (url.searchParams.has('onSale') && !['0', '1'].includes(url.searchParams.get('onSale')!)))) {
+  if (isList && (!/^[0-9]$/.test(pageText) || (url.searchParams.has('onSale') && !['0', '1'].includes(url.searchParams.get('onSale')!)))) {
     return error('หน้าหรือเงื่อนไขดีลไม่ถูกต้อง', 400)
   }
   try {

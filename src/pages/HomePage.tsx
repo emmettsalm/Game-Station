@@ -78,6 +78,14 @@ export default function HomePage() {
       {!isRateLimited && <button type="button" className="btn btn-sm" onClick={retryGames}>ลองโหลดราคาอีกครั้ง</button>}
     </div>
   ) : null
+  const catalogNotice = !catalogUnavailable && gamesQuery.warning ? (
+    <div role="alert" className="alert alert-warning text-sm">
+      <span>{gamesQuery.warning} ขณะนี้แสดง {allGames.length}/{PRICED_GAME_COUNT} เกม
+        {gamesQuery.retryAfter !== null ? ' ระบบจะลองใหม่เมื่อครบเวลารอ' : ''}</span>
+      {gamesQuery.retryAfter === null &&
+        <button type="button" className="btn btn-sm" onClick={retryGames}>ลองโหลดเพิ่ม</button>}
+    </div>
+  ) : null
 
   if (isListMode) {
     const genreName = genres.find((item) => item.slug === genre)?.name ?? genre
@@ -86,6 +94,7 @@ export default function HomePage() {
         <div className="space-y-4">
           {searchBar}
           {priceNotice}
+          {catalogNotice}
           {genreFeedback}
           <GenreTabs genres={genres} active={genre}
             onSelect={(slug) => updateParams({ genre: slug, page: undefined, view: 'all' })} />
@@ -123,6 +132,7 @@ export default function HomePage() {
             : <EmptyState icon="🎮" title="ยังไม่มีเกมในระบบ" />}
       {searchBar}
       {priceNotice}
+      {catalogNotice}
       {gamesQuery.isError && featured && !catalogUnavailable && <ErrorState message="อัปเดตข้อมูลไม่สำเร็จ" onRetry={retryGames} />}
       <PopularSection title="ยอดนิยมตอนนี้" games={popular.slice(0, 4)} isLoading={isLoading}
         savedIds={wishlist} onToggleSave={toggleWishlist} getPrice={getPrice} />

@@ -1,6 +1,7 @@
 import type { Deal } from '../types/deal'
 import { getDealForOffers, priceErrorMessage } from '../api/cheapshark'
 import { useGameOfferQueries } from '../hooks/useGameOffers'
+import { PRICED_GAME_COUNT } from '../hooks/usePricedGames'
 import { useStoreCatalog } from '../hooks/useStoreCatalog'
 import DealCard from '../components/deal/DealCard'
 import GameGrid from '../components/game/GameGrid'
@@ -69,6 +70,14 @@ export default function DealsPage() {
       <h1 className="text-3xl md:text-4xl font-extrabold">
         🔥 Hot Deals
       </h1>
+      {!pricesUnavailable && gamesQuery.warning && (
+        <div role="alert" className="alert alert-warning text-sm">
+          <span>{gamesQuery.warning} ขณะนี้ Store มี {games.length}/{PRICED_GAME_COUNT} เกม
+            {gamesQuery.retryAfter !== null ? ' ระบบจะลองใหม่เมื่อครบเวลารอ' : ''}</span>
+          {gamesQuery.retryAfter === null &&
+            <button type="button" className="btn btn-sm" onClick={refetch}>ลองโหลดเพิ่ม</button>}
+        </div>
+      )}
       {pricesUnavailable ? (
         <ErrorState
           message={priceErrorMessage(gamesQuery.error)}
